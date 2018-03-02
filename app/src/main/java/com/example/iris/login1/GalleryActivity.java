@@ -25,7 +25,9 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.widget.ImageButton;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import java.io.File;
 import java.text.SimpleDateFormat;
@@ -71,6 +73,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
     private MediaPlayer.OnCompletionListener onCompletionListener;
 
     private View masterLayout;
+
+    private ViewGroup mainGallery;
 
     /* -- Splash screen views -- */
     private SurfaceView surfaceviewFullScreen;
@@ -123,6 +127,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
     private STATE _audioPlaying;
     private String language = BuildConfig.LANGUAGE_FEATURE_ID;
 
+    private final static String TAG = "GalleryActivity";
+
 
     private MediaPlayer playMediaInAccept(MediaPlayer mp, int file) {
         mp = MediaPlayer.create(this, playListAccept[file]);
@@ -139,8 +145,27 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-
         super.onCreate(savedInstanceState);
+
+        Bundle extras = getIntent().getExtras();
+
+        /* This will only get called if FaceLogin was launched from another app */
+        if(extras != null) {
+            Log.w(TAG, "Checking kiosk mode... version = " + Build.VERSION.SDK_INT);
+            boolean KIOSK_MODE = extras.getBoolean("KIOSK_MODE");
+            Log.w(TAG, "KioskMode = " + KIOSK_MODE);
+            // do the thing
+            if (KIOSK_MODE) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                    Log.w(TAG, "Enabling Kiosk Mode");
+                    startLockTask();
+                } else {
+                    Log.w(TAG, "Kiosk not enabled in your version of Android");
+                }
+            }
+        } else {
+            Log.w(TAG, "Why is this null????");
+        }
 
         initVarsOfViews();
         initVarsOfMediaPlayer();
@@ -177,6 +202,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
 
         masterLayout = (RelativeLayout) findViewById(R.id.masterLayout);
 
+        mainGallery = (LinearLayout) findViewById(R.id.activity_gallery);
+
         /* Find the Splash screen Views */
         surfaceviewFullScreen = (SurfaceView) findViewById(R.id.show_full_screen);
         logo = (ImageButton) findViewById(R.id.logo);
@@ -201,6 +228,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                     }
                 }
         );
+        mainGallery.setVisibility(View.INVISIBLE);
 
         surfaceview = (SurfaceView) findViewById(R.id.id_content);
         coverSurface = (ImageView) findViewById(R.id.cover_surface);
@@ -415,6 +443,12 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                         // TODO pass the unique student id
                         // TODO test more fervently
                         Intent launchIntent = getPackageManager().getLaunchIntentForPackage(ROBOTUTOR_PACKAGE_ADDRESS);
+
+                        if(launchIntent == null) {
+                            Toast.makeText(getApplicationContext(), "Please install RoboTutor", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
                         Bundle sessionBundle = new Bundle();
                         Log.w("BUNDLE", currentUser.getUserIcon());
                         String uniqueUserID = generateUniqueIdFromFilename(currentUser.getUserIcon());
@@ -601,6 +635,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                     case MotionEvent.ACTION_UP:
                         Log.d("SPLASH", "ACTION_UP");
                         depressLogoAction();
+                        mainGallery.setVisibility(View.VISIBLE);
                         logo.setVisibility(View.INVISIBLE);
                         logoShadow.setVisibility(View.INVISIBLE);
                         splash.setVisibility(View.INVISIBLE);
@@ -1054,7 +1089,10 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
         @Override
         public void run() {
             if (logo.getVisibility() == View.VISIBLE) {
+
+                // show surface view that shows demo vid
                 surfaceviewFullScreen.setVisibility(View.VISIBLE);
+                // hide everything else
                 logo.setVisibility(View.INVISIBLE);
                 logoShadow.setVisibility(View.INVISIBLE);
                 splash.setVisibility(View.INVISIBLE);
