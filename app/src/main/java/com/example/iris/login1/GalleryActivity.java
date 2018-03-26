@@ -20,6 +20,7 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.Window;
 import android.view.WindowManager;
@@ -158,7 +159,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
             if (KIOSK_MODE) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                     Log.w(TAG, "Enabling Kiosk Mode");
-                    startLockTask();
+                    //startLockTask();
                 } else {
                     Log.w(TAG, "Kiosk not enabled in your version of Android");
                 }
@@ -457,6 +458,10 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                         launchIntent.putExtras(sessionBundle);
 
                         if (launchIntent != null) {
+
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+//                                stopLockTask();
+                            }
                             startActivity(launchIntent);
                         } else {
                             Log.e("ACTIVITY", "New Activity failed to start!");
