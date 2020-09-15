@@ -1,8 +1,12 @@
 package com.example.iris.login1;
 
+import android.util.Log;
 import android.util.Pair;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -27,7 +31,7 @@ public class Common {
         TO_SEE_MORE_ICONS, SLIDE_ICONS_LIKE_THIS
     }
 
-    public static final String[] ANIMAL_NAMES_ENG = {"bat", "bear", "bee", "buffalo", "butterfly",
+    public static String[] ANIMAL_NAMES_ENG = {"bat", "bear", "bee", "buffalo", "butterfly",
         "camel", "cat", "cheetah", "chicken", "chimpanzee", "cow", "crocodile", "dog", "donkey", "dove",
         "duck", "eagle", "elephant", "fish", "flamingo", "fox", "frog", "giraffe", "goat", "gorilla", "hippo", "horse",
         "hyena", "kangaroo", "leopard", "lion", "monkey", "mouse", "ostrich", "parrot","rabbit",
@@ -36,13 +40,13 @@ public class Common {
     // chimp and gorilla => sokwe
     // zebra and donkey => punda
 
-    public static final String[] ANIMAL_NAMES_SWA = {"popo", "dubu", "nyuki", "nyati", "kipepeo",
+    public static String[] ANIMAL_NAMES_SWA = {"popo", "dubu", "nyuki", "nyati", "kipepeo",
             "ngamia", "paka", "duma", "kuku", "sokwe (chimpanzee)", "ng'ombe", "mamba", "mbwa", "punda (donkey)", "njiwa",
             "bata", "tai", "tembo", "samaki", "korongo", "mbweha", "chura", "twiga", "mbuzi", "sokwe (gorilla)", "kiboko", "farasi",
             "fisi", "kangaruu", "chui", "simba", "tumbili", "panya", "mbuni", "kasuku","sungura",
             "kondoo", "nyoka", "buibui", "kuchakuro", "kobe", "mbwa mwitu", "punda (zebra)"};
 
-    public static final int[] ANIMAL_PATHS = {R.drawable.bat, R.drawable.bear, R.drawable.bee, R.drawable.buffalo,
+    public static int[] ANIMAL_PATHS = {R.drawable.bat, R.drawable.bear, R.drawable.bee, R.drawable.buffalo,
             R.drawable.butterfly, R.drawable.camel, R.drawable.cat, R.drawable.cheetah,
             R.drawable.chicken, R.drawable.chimpanzee, R.drawable.cow, R.drawable.crocodile, R.drawable.dog,
             R.drawable.donkey, R.drawable.dove, R.drawable.duck, R.drawable.eagle, R.drawable.elephant,
@@ -53,20 +57,20 @@ public class Common {
             R.drawable.spider, R.drawable.squirrel, R.drawable.turtle,
             R.drawable.wolf, R.drawable.zebra};
 
-    public static final int[] ANIMAL_SOUNDS = {R.raw.popo, R.raw.dubu, R.raw.nyuki, R.raw.nyati, R.raw.kipepeo,
+    public int[] ANIMAL_SOUNDS = {R.raw.popo, R.raw.dubu, R.raw.nyuki, R.raw.nyati, R.raw.kipepeo,
             R.raw.ngamia, R.raw.paka, R.raw.duma, R.raw.kuku, R.raw.sokwe, R.raw.ng_ombe, R.raw.mamba, R.raw.mbwa,
             R.raw.punda, R.raw.njiwa, R.raw.bata, R.raw.tai, R.raw.tembo, R.raw.samaki, R.raw.korongo, R.raw.mbweha,
             R.raw.chura, R.raw.twiga, R.raw.mbuzi, R.raw.sokwe, R.raw.kiboko, R.raw.farasi, R.raw.fisi, R.raw.kangaruu,
             R.raw.chui, R.raw.simba, R.raw.tumbili, R.raw.panya, R.raw.mbuni, R.raw.kasuku, R.raw.sungura, R.raw.kondoo,
             R.raw.nyoka, R.raw.buibui, R.raw.kuchakuro, R.raw.kobe, R.raw.mbwa_mwitu, R.raw.punda};
 
-    public static final Map<String, Pair<Integer, Integer>> ANIMALS_ENG = new HashMap<String, Pair<Integer, Integer>>() {{
+    public  Map<String, Pair<Integer, Integer>> ANIMALS_ENG = new HashMap<String, Pair<Integer, Integer>>() {{
         for(int i = 0; i < ANIMAL_NAMES_ENG.length; i++){
             put(ANIMAL_NAMES_ENG[i], Pair.create(ANIMAL_PATHS[i], ANIMAL_SOUNDS[i]));
         }
     }};
 
-    public static final Map<String, Pair<Integer, Integer>> ANIMALS_SWA = new HashMap<String, Pair<Integer,Integer>>() {{
+    public  Map<String, Pair<Integer, Integer>> ANIMALS_SWA = new HashMap<String, Pair<Integer,Integer>>() {{
         for(int i = 0; i < ANIMAL_NAMES_SWA.length; i++){
             put(ANIMAL_NAMES_SWA[i], Pair.create(ANIMAL_PATHS[i], ANIMAL_SOUNDS[i]));
         }
@@ -124,4 +128,27 @@ public class Common {
 
     public static final String IMAGE_FILE_PREFIX = "IMAGE_";
     public static final String IMAGE_FILE_SUFFIX = ".jpg";
+
+    public void setAnimalListEnglish(String[] newAnimalNamesEng){
+        this.ANIMAL_NAMES_ENG = newAnimalNamesEng;
+        generatePathEnglish();
+    }
+    public void setAnimalListSwahili(String[] newAnimalNamesSwa){
+        this.ANIMAL_NAMES_SWA = newAnimalNamesSwa;
+        generatePathSwahili();
+    }
+    public void generatePathEnglish(){
+        ANIMAL_PATHS = new int[ANIMAL_NAMES_ENG.length];
+        Log.d("length of animal lengh", String.valueOf(ANIMAL_NAMES_SWA.length));
+        for(int i=0;i<ANIMAL_NAMES_ENG.length;i++){
+            ANIMAL_PATHS[i] = ANIMALS_ENG.get(ANIMAL_NAMES_ENG[i]).first;
+        }
+    }
+    public void generatePathSwahili(){
+        ANIMAL_PATHS = new int[ANIMAL_NAMES_SWA.length];
+        Log.d("length of animal lengh", String.valueOf(ANIMAL_NAMES_SWA.length));
+        for(int i=0;i<ANIMAL_NAMES_SWA.length;i++){
+            ANIMAL_PATHS[i] = ANIMALS_SWA.get(ANIMAL_NAMES_SWA[i]).first;
+        }
+    }
 }

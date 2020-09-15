@@ -13,11 +13,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import static com.example.iris.login1.Common.ANIMAL_NAMES_ENG;
 import static com.example.iris.login1.Common.ANIMAL_NAMES_SWA;
 import static com.example.iris.login1.Common.FACE_LOGIN_PATH;
+import static com.example.iris.login1.Common.LANG_EN;
 
 /**
  * Created by Iris on 16/7/20.
@@ -73,6 +76,7 @@ public class DataHelper {
         return !fileNames.contains(iconpath) || !fileNames.contains(videopath);
     }
 
+
     public List<UserInfo> getUserList(){
         List<UserInfo> userList = new ArrayList<UserInfo>();
         Cursor cursor = db.query(SqliteHelper.TB_NAME, null, null, null, null, null, UserInfo.ID + " DESC");
@@ -113,6 +117,98 @@ public class DataHelper {
         Log.e("recen table getulist: ", this.getTableAsString(SqliteHelper.REC_NAME));
         return userList;
     }
+    public ArrayList<String> getAnimalList() {
+        Cursor cursor = db.query(SqliteHelper.TB_NAME, new String[]{"profileIcon"}, null, null, null, null, null);
+        String[] ANIMAL_NAMES_ENG = {"bat", "bear", "bee", "buffalo", "butterfly",
+                "camel", "cat", "cheetah", "chicken", "chimpanzee", "cow", "crocodile", "dog", "donkey", "dove",
+                "duck", "eagle", "elephant", "fish", "flamingo", "fox", "frog", "giraffe", "goat", "gorilla", "hippo", "horse",
+                "hyena", "kangaroo", "leopard", "lion", "monkey", "mouse", "ostrich", "parrot","rabbit",
+                "sheep", "snake", "spider", "squirrel", "turtle", "wolf", "zebra"};
+
+        // chimp and gorilla => sokwe
+        // zebra and donkey => punda
+
+        String[] ANIMAL_NAMES_SWA = {"popo", "dubu", "nyuki", "nyati", "kipepeo",
+                "ngamia", "paka", "duma", "kuku", "sokwe (chimpanzee)", "ng'ombe", "mamba", "mbwa", "punda (donkey)", "njiwa",
+                "bata", "tai", "tembo", "samaki", "korongo", "mbweha", "chura", "twiga", "mbuzi", "sokwe (gorilla)", "kiboko", "farasi",
+                "fisi", "kangaruu", "chui", "simba", "tumbili", "panya", "mbuni", "kasuku","sungura",
+                "kondoo", "nyoka", "buibui", "kuchakuro", "kobe", "mbwa mwitu", "punda (zebra)"};
+        final int idIndex = cursor.getColumnIndex("profileIcon");
+        Log.d("DataHelper","Cursor created!");
+        try {
+
+            // If moveToFirst() returns false then cursor is empty
+            if (!cursor.moveToFirst()) {
+                Log.d("DataHelper","Empty list");
+                if (BuildConfig.LANGUAGE_FEATURE_ID.equals(LANG_EN)) {
+                    ArrayList<String> newList = new ArrayList<String>(Arrays.asList(ANIMAL_NAMES_ENG)); //new ArrayList is only needed if you absolutely need an ArrayList
+                    Log.d("DataHelper","Returning empty Animal List");
+
+                    return newList;
+
+                } else {
+                    ArrayList<String> newList = new ArrayList<String>(Arrays.asList(ANIMAL_NAMES_SWA)); //new ArrayList is only needed if you absolutely need an ArrayList
+                    Log.d("DataHelper","Returning empty Swahili Animal List");
+                    return newList;
+                }
+            }
+
+            final ArrayList<String> animals_frequency = new ArrayList<>();
+
+            do {
+
+                // Read the values of a row in the table using the indexes acquired above
+
+                final String animal_name = cursor.getString(idIndex);
+                Log.d("DataHelper",animal_name);
+                animals_frequency.add(animal_name.toLowerCase());
+
+            } while (cursor.moveToNext());
+            Set<String> distinctAnimals = new HashSet<>(animals_frequency);
+            Log.d("disctinctAnimal",distinctAnimals.toString());
+
+            ArrayList<AnimalIcon> animalIconList = new ArrayList<>();
+            for (String animal:distinctAnimals){
+                animalIconList.add(new AnimalIcon(animal,Collections.frequency(animals_frequency, animal)));
+            }
+
+
+            if (BuildConfig.LANGUAGE_FEATURE_ID.equals(LANG_EN)) {
+                for(String animal:ANIMAL_NAMES_ENG){
+                    if(!animals_frequency.contains(animal))
+                        animalIconList.add(new AnimalIcon(animal,0));
+                }
+                Log.d("DataHelper","Setting Animal List");
+            } else {
+                for(String animal:ANIMAL_NAMES_SWA){
+                    if(!animals_frequency.contains(animal))
+                        animalIconList.add(new AnimalIcon(animal,0));
+                }
+                Log.d("DataHelper","Setting Swahili Animal List");
+            }
+
+            Log.d("animalIconList",animalIconList.toString());
+
+            Collections.sort(animalIconList,new iconComparator());
+            Log.d("Sorted animalIconList",animalIconList.toString());
+
+            ArrayList<String> newFreq = new ArrayList<>();
+            for(AnimalIcon animal :animalIconList){
+                newFreq.add(animal.getName());
+            }
+            Log.d("animalIconList",newFreq.toString());
+
+            return newFreq;
+
+        }
+        finally {
+            Log.d("Datahelper","Closing dbs");
+            cursor.close();
+            //db.close();
+        }
+    }
+
+
 
     public Long saveUserInfo(UserInfo user){
         ContentValues values = new ContentValues();
@@ -152,7 +248,6 @@ public class DataHelper {
     }
 
     public int updateIconVideo(UserInfo user){
-
         ContentValues values_time = new ContentValues();
         values_time.put(UserInfo.USERICON, user.getUserIcon());
         values_time.put(UserInfo.USERVIDEO, user.getUserVideo());
@@ -164,7 +259,6 @@ public class DataHelper {
         Log.e("updateIconVideo", uid + "");
         Log.e("recen table uiconvid: ", this.getTableAsString(SqliteHelper.REC_NAME));
         return uid;
-
     }
 
     public int updateUserTime(UserInfo user) {
