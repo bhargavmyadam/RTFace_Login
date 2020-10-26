@@ -7,7 +7,13 @@ import android.database.sqlite.SQLiteDatabase;
 import android.os.Build;
 import android.util.Log;
 
+import org.json.JSONException;
+import org.json.JSONObject;
+
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,6 +44,7 @@ public class DataHelper {
     private static int DB_VERSION = 3;
     private SQLiteDatabase db;
     private SqliteHelper dbHelper;
+    private String language = "LANG_EN";
 
     public DataHelper(Context context){
         dbHelper = new SqliteHelper(context, DB_NAME, null, DB_VERSION);
@@ -118,6 +125,15 @@ public class DataHelper {
         return userList;
     }
     public ArrayList<String> getAnimalList() {
+        try {
+            getLanguage();
+        }
+        catch (JSONException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
         Cursor cursor = db.query(SqliteHelper.TB_NAME, new String[]{"profileIcon"}, null, null, null, null, null);
         String[] ANIMAL_NAMES_ENG = {"bat", "bear", "bee", "buffalo", "butterfly",
                 "camel", "cat", "cheetah", "chicken", "chimpanzee", "cow", "crocodile", "dog", "donkey", "dove",
@@ -140,7 +156,8 @@ public class DataHelper {
             // If moveToFirst() returns false then cursor is empty
             if (!cursor.moveToFirst()) {
                 Log.d("DataHelper","Empty list");
-                if (BuildConfig.LANGUAGE_FEATURE_ID.equals(LANG_EN)) {
+
+                if (language.equals(LANG_EN)) {
                     ArrayList<String> newList = new ArrayList<String>(Arrays.asList(ANIMAL_NAMES_ENG)); //new ArrayList is only needed if you absolutely need an ArrayList
                     Log.d("DataHelper","Returning empty Animal List");
 
@@ -173,7 +190,7 @@ public class DataHelper {
             }
 
 
-            if (BuildConfig.LANGUAGE_FEATURE_ID.equals(LANG_EN)) {
+            if (language.equals(LANG_EN)) {
                 for(String animal:ANIMAL_NAMES_ENG){
                     if(!animals_frequency.contains(animal))
                         animalIconList.add(new AnimalIcon(animal,0));
@@ -206,7 +223,22 @@ public class DataHelper {
             cursor.close();
             //db.close();
         }
+}
+
+    private void getLanguage() throws IOException, JSONException {
+        String dataPath = "/sdcard/Download" + "/config.json";
+        InputStream is = new FileInputStream(dataPath);
+        int size = is.available();
+        byte[] buffer = new byte[size];
+        is.read(buffer);
+        is.close();
+        String myJson = new String(buffer, "UTF-8");
+        JSONObject obj = new JSONObject(myJson);
+        language = obj.getString("language_feature_id");
+        Log.d("myJson",language);
     }
+
+
 
 
 

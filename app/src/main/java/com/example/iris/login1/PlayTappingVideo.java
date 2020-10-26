@@ -3,8 +3,16 @@ package com.example.iris.login1;
 import android.content.Context;
 import android.media.MediaPlayer;
 import android.os.Handler;
+import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 /**
  * Created by kevindeland on 1/6/18.
@@ -20,6 +28,7 @@ public class PlayTappingVideo extends PlayVideoThread {
     private MediaPlayer mPlayer;
     private Handler mHandler;
     private Context context;
+    private String language = "LANG_EN";
     private boolean isPlaying = true;
 
     public PlayTappingVideo(SurfaceHolder surfaceHolder,
@@ -31,9 +40,15 @@ public class PlayTappingVideo extends PlayVideoThread {
 
     @Override
     public void run() {
-
+        try {
+            getLanguage();
+        } catch (IOException e) {
+            e.printStackTrace();
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
         // set up the MediaPlayer
-        if( BuildConfig.LANGUAGE_FEATURE_ID.equals(Common.LANG_EN) ) {
+        if( language.equals(Common.LANG_EN) ) {
             // English version
             mPlayer = MediaPlayer.create(context,  R.raw.tapping_instruction_video_en);
         } else {
@@ -66,6 +81,22 @@ public class PlayTappingVideo extends PlayVideoThread {
             }
         });
     }
+
+
+    private void getLanguage() throws IOException, JSONException {
+        String dataPath = "/sdcard/Download" + "/config.json";
+        InputStream is = new FileInputStream(dataPath);
+        int size = is.available();
+        byte[] buffer = new byte[size];
+        is.read(buffer);
+        is.close();
+        String myJson = new String(buffer, "UTF-8");
+        JSONObject obj = new JSONObject(myJson);
+        language = obj.getString("language_feature_id");
+        Log.d("myJson",language);
+    }
+
+
 
     @Override
     public boolean isPlayingVideo() {

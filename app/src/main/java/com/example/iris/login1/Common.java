@@ -76,6 +76,8 @@ public class Common {
         }
     }};
 
+
+
     //indicate the delay time
     public static final int DELAY_TO_SHOW_VIDEO_FULL_SCREEN = 7000;
     public static final int DELAY_TO_SHOW_VIDEO = 5000;
