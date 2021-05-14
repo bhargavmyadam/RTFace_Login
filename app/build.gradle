@@ -1,15 +1,21 @@
 apply plugin: 'com.android.application'
 
 android {
-    compileSdkVersion 23
-    buildToolsVersion '26.0.2'
+    compileSdkVersion rootProject.ext.rtCompileSdkVersion
+    buildToolsVersion rootProject.ext.rtBuildToolsVersion
     defaultConfig {
         applicationId "com.example.iris.login1"
-        minSdkVersion 15
-        targetSdkVersion 22
-        versionCode 1
-        versionName "1.7.5.5"
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        minSdkVersion rootProject.ext.rtMinSdkVersion
+        targetSdkVersion rootProject.ext.rtTargetSdkVersion
+        versionCode rootProject.ext.rtVersionCode
+        versionName rootProject.ext.rtVersionName
+        // default is signed by the Android default key
+
+        multiDexEnabled true
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
     }
 
     def keystorePropertiesFile = rootProject.file("keystore.properties")
@@ -62,17 +68,21 @@ android {
         variant.outputs.all { output ->
             def project = "facelogin"
             def SEP = "."
-            def buildType = variant.variantData.variantConfiguration.buildType.name
+            //def buildType = variant.variantData.variantConfiguration.buildType.name
+            def buildType = variant.buildType.name
             def version = variant.versionName
 
-            def newApkName = project + SEP + buildType + SEP + version + ".apk"
-            outputFileName = new File(output.outputFile.parent, newApkName)
+            def apkName = project + SEP + buildType + SEP + version + ".apk"
+            //output.outputFile = new File(output.outputFile.parent, apkName)
+            output.outputFileName = apkName
         }
     }
 
 }
 
 dependencies {
+    implementation project(path: ':util')
+    implementation project(path: ':comp_configuration')
     compile fileTree(dir: 'libs', include: ['*.jar'])
     androidTestCompile('com.android.support.test.espresso:espresso-core:2.2.2', {
         exclude group: 'com.android.support', module: 'support-annotations'

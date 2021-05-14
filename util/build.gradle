@@ -1,0 +1,80 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion rootProject.ext.rtCompileSdkVersion
+    buildToolsVersion rootProject.ext.rtBuildToolsVersion
+
+    defaultConfig {
+        minSdkVersion rootProject.ext.rtMinSdkVersion
+        targetSdkVersion rootProject.ext.rtTargetSdkVersion
+        versionCode rootProject.ext.rtVersionCode
+        versionName rootProject.ext.rtVersionName
+    }
+
+    def keystorePropertiesFile = rootProject.file("keystore.properties")
+    def keystoreProperties = new Properties()
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+
+    signingConfigs {
+        android {
+            keyAlias keystoreProperties['keyAlias']
+            keyPassword keystoreProperties['keyPassword']
+            storeFile file(keystoreProperties['storeFile'])
+            storePassword keystoreProperties['storePassword']
+        }
+    }
+
+    buildTypes {
+        def BOOLEAN = "boolean"
+        def STRING  = "String"
+        def TRUE    = "true"
+        def FALSE   = "false"
+
+        def LANGUAGE_FEATURE_ID = "LANGUAGE_FEATURE_ID"
+        def LANGUAGE_ENGLISH    = "\"LANG_EN\""
+        def LANGUAGE_SWAHILI    = "\"LANG_SW\""
+
+        debug {
+            buildConfigField STRING, LANGUAGE_FEATURE_ID, LANGUAGE_ENGLISH
+            debuggable true
+        }
+
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+
+        en {
+            buildConfigField STRING, LANGUAGE_FEATURE_ID, LANGUAGE_ENGLISH
+            signingConfig signingConfigs.android
+        }
+
+        sw {
+            buildConfigField STRING, LANGUAGE_FEATURE_ID, LANGUAGE_SWAHILI
+            signingConfig signingConfigs.android
+        }
+    }
+
+    lintOptions {
+        // set to true to turn off analysis progress reporting by lint
+        quiet true
+        // if true, stop the gradle build if errors are found
+        abortOnError false
+        // if true, only report errors
+        ignoreWarnings true
+    }
+
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
+}
+
+dependencies {
+    api fileTree(include: ['*.jar'], dir: 'libs')
+    testImplementation 'junit:junit:4.12'
+    testImplementation 'org.json:json:20140107'
+    implementation 'com.android.support:appcompat-v7:25.2.0'
+    api 'com.android.support:percent:25.2.0'
+    compile files('libs/datashop-logging.jar')
+    api project(':comp_logging')
+}

@@ -7,11 +7,13 @@ import android.annotation.SuppressLint;
 import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Build;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.Message;
@@ -33,17 +35,34 @@ import android.widget.LinearLayout;
 import android.widget.RelativeLayout;
 import android.widget.TextView;
 
+import com.xprize.comp_configuration.Configuration;
+import com.xprize.comp_configuration.ConfigurationItems;
+import com.xprize.comp_configuration.ConfigurationQuickOptions;
+
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 
+import cmu.xprize.comp_logging.CErrorManager;
+import cmu.xprize.comp_logging.CInterventionLogManager;
+import cmu.xprize.comp_logging.CLogManager;
+import cmu.xprize.comp_logging.CPerfLogManager;
+import cmu.xprize.comp_logging.CPreferenceCache;
+import cmu.xprize.comp_logging.ILogManager;
+import cmu.xprize.comp_logging.IPerfLogManager;
+import cmu.xprize.util.JSON_Helper;
+import cmu.xprize.util.TCONST;
+
+import static cmu.xprize.util.TCONST.GRAPH_MSG;
 import static com.example.iris.login1.Common.*;
 import static com.example.iris.login1.Common.STATE.*;
 
@@ -276,8 +295,33 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
     private UserInfo curUser;
 
     private STATE _audioPlaying;
-    private String language = BuildConfig.LANGUAGE_FEATURE_ID;
+    private String language;
 
+    private static ConfigurationItems configurationItems;
+
+    static public String        VERSION_RT;
+
+    static public ILogManager logManager;
+    static public IPerfLogManager perfLogManager;
+
+    private static String hotLogPath;
+    private static String hotLogPathPerf;
+    private static String readyLogPath;
+    private static String readyLogPathPerf;
+    private static String audioLogPath;
+    private static String interventionLogPath;
+
+    final static public String CacheSource = TCONST.ASSETS;                // assets or extern
+    static public String        APP_PRIVATE_FILES;
+    static public String        LOG_ID = "STARTUP";
+
+    private static final String LOG_SEQUENCE_ID = "LOG_SEQUENCE_ID";
+
+    // for devs, this is faster than changing the config file
+    private static final boolean QUICK_DEBUG_CONFIG = false;
+    private static final ConfigurationItems QUICK_DEBUG_CONFIG_OPTION = ConfigurationQuickOptions.DEBUG_EN;
+
+    static final String TAG = "CRTFaceLogin";
 
     private MediaPlayer playMediaInAccept(MediaPlayer mp, int file) {
         mp = MediaPlayer.create(this, playListAccept[file]);
@@ -296,7 +340,9 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
      */
     private void releaseAndPlayAudioFile(int audioFile) {
         Log.e("audionow", getResources().getResourceEntryName(audioFile));
-        mpAll.release();
+        logManager.postEvent_I(TAG, "audionow:"+getResources().getResourceEntryName(audioFile));
+        if (mpAll != null)
+            mpAll.release();
         mpAll = MediaPlayer.create(this, audioFile);
         mpAll.setOnCompletionListener(onCompletionListener);
         mpAll.seekTo(0);
@@ -312,6 +358,32 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
 
         Thread.setDefaultUncaughtExceptionHandler(new CrashHandler());
 
+        APP_PRIVATE_FILES = getApplicationContext().getExternalFilesDir("").getPath();
+
+        // Initialize the JSON Helper STATICS - just throw away the object.
+        //
+        new JSON_Helper(getAssets(), CacheSource, APP_PRIVATE_FILES);
+
+        // Gives the dev the option to override the stored config file.
+        configurationItems = QUICK_DEBUG_CONFIG ? QUICK_DEBUG_CONFIG_OPTION : new ConfigurationItems(); // OPEN_SOURCE opt to switch here.
+        Configuration.saveConfigurationItems(this, configurationItems);
+
+        // Prep the CPreferenceCache
+        // Update the globally accessible id object for this engine instance.
+        //
+        LOG_ID = CPreferenceCache.initLogPreference(this);
+        VERSION_RT   = BuildConfig.VERSION_NAME;
+
+        language = Configuration.getLanguageFeatureID(this);
+
+        //Start LogManager
+        //
+        initializeAndStartLogs();
+
+        //Log current config data
+        //
+        Configuration.logConfigurationItems(this);
+
         initVarsOfViews();
         initVarsOfMediaPlayer();
         setScrollViewListeners();
@@ -325,7 +397,6 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
 
         mIconScrollView.initDatas(new ScrollViewAdapter(this, mIcons, true), false);
         mIconScrollView.clearAllBackground();
-
 
         // KIMTAR, _audioPlaying this is the state that specifies which part of "onCompletionListener" is played
         // MARCH START WITH THIS_IS_ROBOTUTOR
@@ -351,7 +422,66 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
 
         mainHandler.postDelayed(splashRoboFingerSlideRunnable, DELAY_TO_SHOW_CHANGE_OF_FINGER);
         mainHandler.postDelayed(playVideoOfGoodTappingRunnable, DELAY_TO_SHOW_VIDEO_FULL_SCREEN);
+    }
 
+    /**
+     * create log paths.
+     * initialize times and other IDs
+     * start logging
+     */
+    private void initializeAndStartLogs() {
+
+        hotLogPath   = Environment.getExternalStorageDirectory() + TCONST.HOT_LOG_FOLDER;
+        readyLogPath = Environment.getExternalStorageDirectory() + TCONST.READY_LOG_FOLDER;
+
+        hotLogPathPerf = Environment.getExternalStorageDirectory() + TCONST.HOT_LOG_FOLDER_PERF;
+        readyLogPathPerf = Environment.getExternalStorageDirectory() + TCONST.READY_LOG_FOLDER_PERF;
+
+        audioLogPath = Environment.getExternalStorageDirectory() + TCONST.AUDIO_LOG_FOLDER;
+
+        interventionLogPath = Environment.getExternalStorageDirectory() + TCONST.INTERVENTION_LOG_FOLDER;
+
+        Calendar calendar = Calendar.getInstance(Locale.US);
+        String initTime     = new SimpleDateFormat("yyyy.MM.dd.HH.mm.ss", Locale.US).format(calendar.getTime());
+        String sequenceIdString = String.format(Locale.US, "%06d", getNextLogSequenceId());
+        // NOTE: Need to include the configuration name when that is fully merged
+        String logFilename  = "RTFaceLogin_" + // TODO TODO TODO there should be a version name in here!!!
+                Configuration.configVersion(this) + "_" + BuildConfig.VERSION_NAME + "_" + sequenceIdString +
+                "_" + initTime + "_" + Build.SERIAL;
+
+        Log.w("LOG_DEBUG", "Beginning new session with LOG_FILENAME = " + logFilename);
+
+        logManager = CLogManager.getInstance();
+        logManager.transferHotLogs(hotLogPath, readyLogPath);
+        logManager.transferHotLogs(hotLogPathPerf, readyLogPathPerf);
+
+        logManager.startLogging(hotLogPath, logFilename);
+        CErrorManager.setLogManager(logManager);
+
+        perfLogManager = CPerfLogManager.getInstance();
+        perfLogManager.startLogging(hotLogPathPerf, "PERF_" + logFilename);
+
+        CInterventionLogManager.getInstance().startLogging(interventionLogPath,
+                "INT_" + logFilename);
+
+        // TODO : implement time stamps
+        logManager.postDateTimeStamp(GRAPH_MSG, "RTFaceLogin:SessionStart");
+        logManager.postEvent_I(GRAPH_MSG, "EngineVersion:" + VERSION_RT);
+    }
+
+    private int getNextLogSequenceId() {
+        SharedPreferences prefs = getPreferences(MODE_PRIVATE);
+
+        // grab the current sequence id (the one we should use for this current run
+        // of the app
+        final int logSequenceId = prefs.getInt(LOG_SEQUENCE_ID, 0);
+
+        // increase the log sequence id by 1 for the next usage
+        prefs.edit()
+                .putInt(LOG_SEQUENCE_ID, logSequenceId + 1)
+                .apply();
+
+        return logSequenceId;
     }
 
     private void initVarsOfViews() {
@@ -462,6 +592,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                 break;
 
             case LANG_SW:
+            default:
                 mpAll = MediaPlayer.create(this, R.raw.swa_thisisrobotutor);
                 playListRT = mediaListRTSwa;
                 playListStart = mediaListStartSwa;
@@ -557,7 +688,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                     case PLEASE_SAY_YOUR_NAME:
                         //prompt "please say your name", then set timer to stop recording
                         Log.w("TIMING", "PLEASE SAY YOUR NAME " + System.currentTimeMillis());
-                        thread.setTimerToStopRecording();
+                        if (thread != null)
+                            thread.setTimerToStopRecording();
                         Log.w("TIMING", "PLEASE SAY YOUR NAME " + System.currentTimeMillis());
                         // MARCH DOTHIS record video; play back video; go to LOGIN_GALLERY 1
                         break;
@@ -573,11 +705,13 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                                 silenceInMs = TRAILING_SILENCE_EN;
                                 break;
                             case LANG_SW:
+                            default:
                                 silenceInMs = TRAILING_SILENCE_SW;
                                 break;
                         }
                         Log.i("TIMING", "setting record at " + silenceInMs);
-                        thread.newReplay(thread.vPath, silenceInMs);
+                        if (thread != null)
+                            thread.newReplay(thread.vPath, silenceInMs);
                         // MARCH DOTHIS IF YES AND NEW USER go to LOGIN_APPROVE_VIDEO 1
                         // MARCH DOTHIS IF YES AND NOT NEW USER go to LOGIN_APPROVE_VIDEO 2
                         // MARCH DOTHIS IS NO go to LOGIN_GALLERY 1
@@ -660,7 +794,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                             if (!iconRegd) {
                                 String icntext = icontext_enroll.getText().toString();
                                 releaseAndPlayAudioFileAnimal(language.equals(LANG_EN) ?
-                                                Common.ANIMALS_ENG.get(icntext.toLowerCase()).second : Common.ANIMALS_SWA.get(icntext.toLowerCase()).second,
+                                                ANIMALS_ENG.get(icntext.toLowerCase()).second : ANIMALS_SWA.get(icntext.toLowerCase()).second,
                                         new MediaPlayer.OnCompletionListener() {
                                             @Override
                                             public void onCompletion(MediaPlayer mp) {
@@ -690,7 +824,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                             String icntext = icontext.getText().toString();
                             if(iconpick2){
                                 releaseAndPlayAudioFileAnimal(language.equals(LANG_EN) ?
-                                                Common.ANIMALS_ENG.get(icntext.toLowerCase()).second : Common.ANIMALS_SWA.get(icntext.toLowerCase()).second,
+                                                ANIMALS_ENG.get(icntext.toLowerCase()).second : ANIMALS_SWA.get(icntext.toLowerCase()).second,
                                         new MediaPlayer.OnCompletionListener() {
                                             @Override
                                             public void onCompletion(MediaPlayer mp) {
@@ -757,15 +891,15 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                         removeOldVideos();
                         Intent launchIntent = getPackageManager().getLaunchIntentForPackage(ROBOTUTOR_PACKAGE_ADDRESS);
                         Bundle sessionBundle = new Bundle();
-                        Log.w("BUNDLE", currentUser.getUserIcon());
+                        Log.e("BUNDLE", currentUser.getUserIcon());
                         //String uniqueUserID = generateUniqueIdFromFilename(currentUser.getUserIcon());
 
                         String uniqueUserID = currentUser.getBirthDate() + "-" + String.valueOf(currentUser.getID()) + "-" +
                                 currentUser.getBirthDevice();
 
                         Log.e("uniqueUserID", uniqueUserID);
-                        sessionBundle.putString(Common.STUDENT_ID_VAR, uniqueUserID);
-                        sessionBundle.putString(Common.SESSION_ID_VAR, newSessId);
+                        sessionBundle.putString(STUDENT_ID_VAR, uniqueUserID);
+                        sessionBundle.putString(SESSION_ID_VAR, newSessId);
                         launchIntent.putExtras(sessionBundle); 
                         launchIntent.setFlags(0);
 
@@ -773,6 +907,11 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                         logHandler.log(Pair.create("Student ID", uniqueUserID), Pair.create("Session ID", newSessId));
 
                         if (launchIntent != null) {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+                                stopLockTask();
+                                Log.e(TAG, "Stopping Lock Task mode");
+                            }
+                            Log.e(TAG, "Launching RoboTutor");
                             startActivityForResult(launchIntent, RT_STARTED);
                         } else {
                             Log.e("ACTIVITY", "New Activity failed to start!");
@@ -1131,7 +1270,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                 }
             } else {
                 mHandler.removeCallbacks(this);
-                curUser.setGender("unspecified");
+                if (curUser == null) curUser = new UserInfo();
+                    curUser.setGender("unspecified");
                 Log.e("Gender set", curUser.getGender());
                 stopFlash(FLASH_GIRL);
                 stopFlash(FLASH_BOY);
@@ -1355,6 +1495,11 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
 
                 String[] ANIMAL_NAMES = (language.equals(LANG_EN) ? ANIMAL_NAMES_ENG : ANIMAL_NAMES_SWA);
 
+                if (position >= mIcons.size() || position >= ANIMAL_NAMES.length) {
+                    Log.e("GalleryActivity", "Clicked item index exceeds Array size!\n" +
+                            "Index: "+position+", Icons List Length: "+mIcons.size()+", Animal Names List Length: "+ANIMAL_NAMES.length);
+                    return;
+                }
                 Integer icnpic = mIcons.get(position);
                 String icntext = ANIMAL_NAMES[position];
 
@@ -1408,7 +1553,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                     stopFlash(FLASH_LIKE);
                     stopFlash(FLASH_DISLIKE);
                     //If waiting for confirm && user tap on an old one, delete the temporary new one.
-                    thread.deleteVideoAndPicture();
+                    if (thread != null)
+                        thread.deleteVideoAndPicture();
                 }
 
                 currentUser = userInfo.get(position);
@@ -1726,7 +1872,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                             //mHandler.removeCallbacksAndMessages(null);
                             if (needConfirm) {
                                 needConfirm = false;
-                                thread.deleteVideoAndPicture();
+                                if (thread != null)
+                                    thread.deleteVideoAndPicture();
                                 recordAgain = true;
                                 _audioPlaying = OKAY_LETS_TRY_AGAIN;
                                 releaseAndPlayAudioFile(playListAfterAccepting[2]);
@@ -1794,6 +1941,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                     case MotionEvent.ACTION_UP:
                         genderboy.setImageResource(R.drawable.gender_boy);
 
+                        if (curUser == null) curUser = new UserInfo();
                         curUser.setGender("male");
 
                         Log.e("Gender set", curUser.getGender());
@@ -1840,6 +1988,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                     case MotionEvent.ACTION_UP:
                         gendergirl.setImageResource(R.drawable.gender_girl);
 
+                        if (curUser == null) curUser = new UserInfo();
                         curUser.setGender("female");
                         Log.e("Gender set", curUser.getGender());
                         stopFlash(FLASH_GIRL);
@@ -1884,6 +2033,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                         break;
                     case MotionEvent.ACTION_UP:
                         iconlike_enroll.setImageResource(R.drawable.like);
+
+                        if (curUser == null) curUser = new UserInfo();
                         curUser.setProfileIcon(icontext_enroll.getText().toString().trim());
                         Log.e("Icon set", curUser.getProfileIcon());
 
@@ -2080,9 +2231,11 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
         // only save when all fields are there
         String birthDate = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
         curUser.setID(accountsNumber);
-        curUser.setUserIcon(thread.pPath);
-        curUser.setUserVideo(thread.vPath);
-        curUser.setRecordTime(thread.relativeStartTime + "");
+        if (thread != null) {
+            curUser.setUserIcon(thread.pPath);
+            curUser.setUserVideo(thread.vPath);
+            curUser.setRecordTime(thread.relativeStartTime + "");
+        }
         curUser.setLastLoginTime(birthDate);
         curUser.setBirthDevice(DataHelper.SERIAL_ID);
         curUser.setBirthDate(birthDate);
@@ -2109,7 +2262,11 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
      * After taking a new video, refresh the gallery before confirming
      */
     private void refreshGalleryBeforeConfirm(){
-        Bitmap bmp = BitmapFactory.decodeFile(thread.pPath);
+        Bitmap bmp = null;
+
+        if (thread != null)
+            bmp = BitmapFactory.decodeFile(thread.pPath);
+
         mDatas.clear();
         initUserInfo();
         String profIconName = currentUser.getProfileIcon(); //TODO when this is used, put check for curUser
@@ -2117,7 +2274,8 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
 
         Integer profIcon = (language.equals(LANG_EN) ? ANIMALS_ENG.get(profIconName).first : ANIMALS_SWA.get(profIconName).first);
 
-        mDatas.add(0, Pair.create(bmp, profIcon));
+        if (bmp != null)
+            mDatas.add(0, Pair.create(bmp, profIcon));
         if(userInfo.size() == 0) mAdapter = new ScrollViewAdapter(this, mDatas);
 
         mAdapter.setMDatas(mDatas);
@@ -2179,10 +2337,13 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
                     } else {
                         like.setVisibility(View.VISIBLE);
                         capture.setVisibility(View.VISIBLE);
-                        currentUser.setUserVideo(thread.vPath);
-                        currentUser.setUserIcon(thread.pPath);
 
-                        currentUser.setRecordTime(thread.relativeStartTime + "");
+                        if (thread != null) {
+                            currentUser.setUserVideo(thread.vPath);
+                            currentUser.setUserIcon(thread.pPath);
+
+                            currentUser.setRecordTime(thread.relativeStartTime + "");
+                        }
                         //mHandler.removeCallbacksAndMessages(null);
                         mHandler.post(toDECIDERecordRec);
                     }
@@ -2862,7 +3023,7 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
         // TODO Auto-generated method stub
         super.onResume();
         killPackage(null);
-        if(pauseWhileRecord) {
+        if (pauseWhileRecord) {
             pauseWhileRecord = false;
             pauseAllAudios();
             Intent i = getBaseContext().getPackageManager()
@@ -2870,6 +3031,21 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
             i.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
             startActivity(i);
             finish();
+        }
+
+        if (Configuration.getPinningMode(this) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            // start lock task mode if it's not already active
+            ActivityManager am = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+            // ActivityManager.getLockTaskModeState api is not available in pre-M
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+                if (!am.isInLockTaskMode()) {
+                    startLockTask();
+                }
+            } else {
+                if (am.getLockTaskModeState() == ActivityManager.LOCK_TASK_MODE_NONE) {
+                    startLockTask();
+                }
+            }
         }
 
         Log.i("RecordDemoActivity", "onResume()");
@@ -2905,14 +3081,21 @@ public class GalleryActivity extends AppCompatActivity implements SurfaceHolder.
         }
         Log.i("RecordDemoActivity", "onDestroy()");
         pauseAllAudios();
-
     }
+
     private void cancelThreads() {
                 mainHandler.removeCallbacks(playVideoOfGoodTappingRunnable);
     }
     private void pauseAllAudios() {
-        if (mpAll.isPlaying() || (thread != null && (thread.isRecording || thread.isPlaying)) ||
-                (videoThread != null && videoThread.isPlayingVideo())) mpAll.pause();
+        try {
+            if (mpAll != null && (mpAll.isPlaying() || (thread != null && (thread.isRecording || thread.isPlaying)) ||
+                    (videoThread != null && videoThread.isPlayingVideo()))) mpAll.pause();
+        } catch (Exception e)  {
+            logManager.postEvent_E(TAG, "GalleyActivity:" +
+                    "Failed to pause all audios. Media Player has not been initialized or has been released");
+            Log.e("GalleyActivity", "Failed to pause all audios. Media Player has not been initialized or has been released");
+            e.printStackTrace();
+        }
     }
 
 }

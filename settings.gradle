@@ -1,1 +1,2 @@
-include ':app'
+include ':comp_configuration'//include ':comp_configuration'
+include ':app', ':util', 'comp_logging'

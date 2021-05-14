@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import cmu.xprize.comp_logging.CLogManager;
+
 /**
  * Created by Iris on 16/7/21.
  */
@@ -47,6 +49,8 @@ public class RecordThread extends Thread{
     private int chosenCamera;
     public boolean isRecording = false;
     public boolean isPlaying = false;
+
+    final static String TAG = "CRTFaceLogin";
 
     public RecordThread(int recordTime, SurfaceView surfaceview,
                         SurfaceHolder surfaceHolder, int accountsNumber_, DataHelper dbHelper_, List<Pair<Bitmap, Integer>> mDatas_, Handler mhandler_) {
@@ -137,18 +141,26 @@ public class RecordThread extends Thread{
             mediarecorder.prepare();
             long after = System.currentTimeMillis();
             Log.i("DEBUG", "prepare:" + (after - before));
-        } catch (IllegalStateException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
+        } catch (IllegalStateException | IOException e) {
+            Log.e("RecordThread", "Failed to prepare MediaRecorder!");
+            CLogManager.getInstance().postEvent_E(TAG, "RecordThread:" + "Failed to prepare MediaRecorder!");
             e.printStackTrace();
         }
 
         // start to record
 
-        long before = System.currentTimeMillis();
-        mediarecorder.start();
-        long after = System.currentTimeMillis();
-        Log.i("DEBUG", "start:" + (after - before));
+        try {
+            long before = System.currentTimeMillis();
+            mediarecorder.start();
+            long after = System.currentTimeMillis();
+            Log.i("DEBUG", "start:" + (after - before));
+        } catch (IllegalStateException e) {
+            CLogManager.getInstance().postEvent_E(TAG, "RecordThread:" + "Failed to start MediaRecorder!");
+            Log.e("RecordThread", "Failed to start MediaRecorder!");
+            e.printStackTrace();
+            return;
+        }
+
         //initiate absoluteStartTime
         absoluteStartTime = System.currentTimeMillis();
         mHandler.sendEmptyMessage(Common.READY_TO_RECORD);
@@ -169,7 +181,13 @@ public class RecordThread extends Thread{
 
         if (mediarecorder != null) {
             // stop recording
-            mediarecorder.stop();
+            try {
+                mediarecorder.stop();
+            } catch (IllegalStateException e) {
+                CLogManager.getInstance().postEvent_E(TAG, "RecordThread:" + "Failed to stop MediaRecorder!");
+                Log.e("RecordThread", "Failed to stop MediaRecorder!");
+                e.printStackTrace();
+            }
             mediarecorder.reset();
             // release the resources
             mediarecorder.release();

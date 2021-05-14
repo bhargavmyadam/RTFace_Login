@@ -6,6 +6,8 @@ import android.os.Handler;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 
+import com.xprize.comp_configuration.Configuration;
+
 /**
  * Created by kevindeland on 1/6/18.
  *
@@ -33,7 +35,7 @@ public class PlayTappingVideo extends PlayVideoThread {
     public void run() {
 
         // set up the MediaPlayer
-        if( BuildConfig.LANGUAGE_FEATURE_ID.equals(Common.LANG_EN) ) {
+        if(context != null && Configuration.getLanguageFeatureID(context).equals(Common.LANG_EN) ) {
             // English version
             mPlayer = MediaPlayer.create(context,  R.raw.tapping_instruction_video_en);
         } else {
@@ -41,30 +43,33 @@ public class PlayTappingVideo extends PlayVideoThread {
             mPlayer = MediaPlayer.create(context, R.raw.tapping_instruction_video_sw);
         }
 
-        mPlayer.setDisplay(surfaceHolder);
-        mPlayer.start();
+        if (mPlayer != null) {
 
-        // send message to Handler / GalleryActivity
-        mHandler.sendEmptyMessage(Common.UNCOVER_SCREEN);
+            mPlayer.setDisplay(surfaceHolder);
+            mPlayer.start();
 
-        /* OnCompletionListener */
-        mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mp) {
-                mHandler.sendEmptyMessage(Common.PLAY_TAPPING_VIDEO_DONE);
-                mPlayer.release();
-                mPlayer = null;
-            }
-        });
+            // send message to Handler / GalleryActivity
+            mHandler.sendEmptyMessage(Common.UNCOVER_SCREEN);
 
-        /* OnErrorListener */
-        mPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
-            @Override
-            public boolean onError(MediaPlayer mediaPlayer, int i, int i1) {
-                mPlayer.reset();
-                return false;
-            }
-        });
+            /* OnCompletionListener */
+            mPlayer.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                @Override
+                public void onCompletion(MediaPlayer mp) {
+                    mHandler.sendEmptyMessage(Common.PLAY_TAPPING_VIDEO_DONE);
+                    mPlayer.release();
+                    mPlayer = null;
+                }
+            });
+
+            /* OnErrorListener */
+            mPlayer.setOnErrorListener(new MediaPlayer.OnErrorListener() {
+                @Override
+                public boolean onError(MediaPlayer mediaPlayer, int i, int i1) {
+                    mPlayer.reset();
+                    return false;
+                }
+            });
+        }
     }
 
     @Override
