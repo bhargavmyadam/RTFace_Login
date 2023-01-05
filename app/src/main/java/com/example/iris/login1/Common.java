@@ -3,6 +3,7 @@ package com.example.iris.login1;
 import android.util.Pair;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -51,8 +52,6 @@ public class Common {
         }
                     return ANIMALS_LINK_ENG_TO_SWA;
     }
-
-
 
     public static final int[] ANIMAL_PATHS = {R.drawable.bat, R.drawable.bear, R.drawable.bee, R.drawable.buffalo,
             R.drawable.butterfly, R.drawable.camel, R.drawable.cat, R.drawable.cheetah,

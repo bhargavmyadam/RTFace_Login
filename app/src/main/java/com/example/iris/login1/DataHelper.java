@@ -243,6 +243,11 @@ public class DataHelper {
             }
             values.moveToNext();
         }
+
+        //Log.e("DataHelper", Common.animal_conn.toString());
+
+
+
         if (animal_names.size() == 0){
             return null;
         }
@@ -250,21 +255,21 @@ public class DataHelper {
 
         int startingListLength = animal_names.size();
 
-//        for (int i = 0; i < ANIMAL_NAMES_ENG.length; i++) {
-//
-//            boolean is_in_list = true;
-//
-//            for (int k = 0; k < animal_names.size(); k++) {
-//
-//                if (animal_names.get(k).equals(ANIMAL_NAMES_ENG[i])) {
-//                    is_in_list = false;
-//                    break;
-//                }
-//            }
-//            if(is_in_list){
-//                animal_names.add(0,ANIMAL_NAMES_ENG[i]);
-//            }
-//        }
+        for (int i = 0; i < ANIMAL_NAMES_ENG.length; i++) {
+
+            boolean is_in_list = true;
+
+            for (int k = 0; k < animal_names.size(); k++) {
+
+                if (animal_names.get(k).equals(ANIMAL_NAMES_ENG[i])) {
+                    is_in_list = false;
+                    break;
+                }
+            }
+            if(is_in_list){
+                animal_names.add(0,ANIMAL_NAMES_ENG[i]);
+            }
+        }
 
         for (int i = 0; i < ANIMAL_NAMES_SWA.length; i++) {
 
@@ -284,28 +289,11 @@ public class DataHelper {
                 animal_names_swa.add(0,ANIMAL_NAMES_SWA[i]);
             }
         }
-//
-//        for (int i = 0; i < (int)(ANIMAL_NAMES_ENG.length-startingListLength)/2; i++) {
-//            String placeholder = animal_names.get(i);
-//
-//            animal_names.set(i,animal_names.get(ANIMAL_NAMES_ENG.length-startingListLength-i));
-//
-//            animal_names.set(ANIMAL_NAMES_ENG.length-startingListLength-i,placeholder);
-//
-//        }
-        for (int i = 0; i < (int)(ANIMAL_NAMES_SWA.length-startingListLength)/2; i++) {
-            String placeholder = animal_names_swa.get(i);
-
-            animal_names_swa.set(i,animal_names_swa.get(ANIMAL_NAMES_SWA.length-startingListLength-i));
-
-            animal_names_swa.set(ANIMAL_NAMES_SWA.length-startingListLength-i,placeholder);
-
-        }
-
 
     for (int i = 0; i < ANIMAL_NAMES_SWA.length; i++) {
 
         ANIMAL_NAMES_SWA[i] = animal_names_swa.get(i);
+        ANIMAL_NAMES_ENG[i] = animal_names.get(i);
 
         String tempName = animal_names_swa.get(i);
 
@@ -319,11 +307,6 @@ public class DataHelper {
         Common.ANIMAL_SOUNDS[i] = animalData.second;
 
     }
-
-        //Common.reMap();
-
-
-//
         String[] response = new String[animal_names.size()];
         response = animal_names.toArray(response);
         return response;

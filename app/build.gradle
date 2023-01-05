@@ -36,7 +36,7 @@ android {
 
         def LANGUAGE_FEATURE_ID = "LANGUAGE_FEATURE_ID"
 
-        //change back to "\"LANG_ENG\""
+        //change back to "\"LANG_EN\""
         def LANGUAGE_ENGLISH    = "\"LANG_EN\""
         def LANGUAGE_SWAHILI    = "\"LANG_SW\""
 
@@ -81,7 +81,6 @@ dependencies {
     androidTestImplementation('androidx.test.espresso:espresso-core:3.1.0', {
         exclude group: 'com.android.support', module: 'support-annotations'
     })
-    implementation 'androidx.appcompat:appcompat:1.0.0'
     implementation 'androidx.appcompat:appcompat:1.0.0'
     //compile 'com.android.support.constraint:constraint-layout:1.0.0-alpha4'
     testImplementation 'junit:junit:4.12'
